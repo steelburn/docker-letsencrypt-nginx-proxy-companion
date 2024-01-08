@@ -1,4 +1,4 @@
-![Tests](https://github.com/nginx-proxy/acme-companion/workflows/Tests/badge.svg)
+[![Tests](https://github.com/nginx-proxy/acme-companion/actions/workflows/test.yml/badge.svg)](https://github.com/nginx-proxy/acme-companion/actions/workflows/test.yml)
 [![GitHub release](https://img.shields.io/github/release/nginx-proxy/acme-companion.svg)](https://github.com/nginx-proxy/acme-companion/releases)
 [![Docker Image Size](https://img.shields.io/docker/image-size/nginxproxy/acme-companion?sort=semver)](https://hub.docker.com/r/nginxproxy/acme-companion "Click to view the image on Docker Hub")
 [![Docker stars](https://img.shields.io/docker/stars/nginxproxy/acme-companion.svg)](https://hub.docker.com/r/nginxproxy/acme-companion "Click to view the image on Docker Hub")
@@ -7,8 +7,6 @@
 **acme-companion** is a lightweight companion container for [**nginx-proxy**](https://github.com/nginx-proxy/nginx-proxy).
 
 It handles the automated creation, renewal and use of SSL certificates for proxied Docker containers through the ACME protocol.
-
-**Required read if you use the `latest` version** : the `v2.0.0` release of this project mark the switch of the ACME client used by the Docker image from [**simp.le**](https://github.com/zenhack/simp_le) to [**acme.sh**](https://github.com/acmesh-official/acme.sh). This switch result in some backward incompatible changes, so please read [this issue](https://github.com/nginx-proxy/acme-companion/issues/510) and the updated docs for more details before updating your image. The single most important change is that the container now requires a volume mounted to `/etc/acme.sh` in order to persist ACME account keys and SSL certificates. The last tagged version that uses **simp_le** is `v1.13.1`.
 
 ### Features:
 * Automated creation/renewal of Let's Encrypt (or other ACME CAs) certificates using [**acme.sh**](https://github.com/acmesh-official/acme.sh).

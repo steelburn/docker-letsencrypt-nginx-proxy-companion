@@ -35,6 +35,8 @@ services:
   acme-companion:
     image: nginxproxy/acme-companion
     container_name: nginx-proxy-acme
+    environment:
+      - DEFAULT_EMAIL=mail@yourdomain.tld
     volumes_from:
       - nginx-proxy
     volumes:
@@ -73,19 +75,21 @@ services:
   docker-gen:
     image: nginxproxy/docker-gen
     container_name: nginx-proxy-gen
-    command: -notify-sighup nginx-proxy -watch /etc/docker-gen/templates/nginx.tmpl /etc/nginx/conf.d/default.conf
+    command: -notify-sighup nginx-proxy -watch 5s:30s /etc/docker-gen/templates/nginx.tmpl /etc/nginx/conf.d/default.conf
     volumes_from:
       - nginx-proxy
     volumes:
       - /path/to/nginx.tmpl:/etc/docker-gen/templates/nginx.tmpl:ro
       - /var/run/docker.sock:/tmp/docker.sock:ro
     labels:
-      - "com.github.jrcs.letsencrypt_nginx_proxy_companion.docker_gen"
+      - "com.github.nginx-proxy.docker-gen"
     network_mode: bridge
 
   acme-companion:
     image: nginxproxy/acme-companion
     container_name: nginx-proxy-acme
+    environment:
+      - DEFAULT_EMAIL=mail@yourdomain.tld
     volumes_from:
       - nginx-proxy
     volumes:

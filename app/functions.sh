@@ -24,6 +24,15 @@ function parse_true() {
 	esac
 }
 
+function in_array() {
+    local needle="$1" item
+    local -n arrref="$2"
+    for item in "${arrref[@]}"; do
+        [[ "$item" == "$needle" ]] && return 0
+    done
+    return 1
+}
+
 [[ -z "${VHOST_DIR:-}" ]] && \
  declare -r VHOST_DIR=/etc/nginx/vhost.d
 [[ -z "${START_HEADER:-}" ]] && \
@@ -53,11 +62,12 @@ function ascending_wildcard_locations {
     # - *.example.com
     local domain="${1:?}"
     local first_label
-    regex="^[[:alnum:]_\-]+(\.[[:alpha:]]+)?$"
-    until [[ "$domain" =~ $regex ]]; do
+    tld_regex="^[[:alpha:]]+$"
+    regex="^[^.]+\..+$"
+    while [[ "$domain" =~ $regex ]]; do
       first_label="${domain%%.*}"
-      domain="${domain/${first_label}./}"
-      if [[ -z "$domain" ]]; then
+      domain="${domain/#"${first_label}."/}"
+      if [[ "$domain" == "*" || "$domain" =~ $tld_regex ]]; then
         return
       else
         echo "*.${domain}"
@@ -73,11 +83,11 @@ function descending_wildcard_locations {
     # - foo.*
     local domain="${1:?}"
     local last_label
-    regex="^[[:alnum:]_\-]+$"
-    until [[ "$domain" =~ $regex ]]; do
+    regex="^.+\.[^.]+$"
+    while [[ "$domain" =~ $regex ]]; do
       last_label="${domain##*.}"
-      domain="${domain/.${last_label}/}"
-      if [[ -z "$domain" ]]; then
+      domain="${domain/%".${last_label}"/}"
+      if [[ "$domain" == "*" ]]; then
         return
       else
         echo "${domain}.*"
@@ -269,7 +279,9 @@ function is_docker_gen_container {
 
 function get_docker_gen_container {
     # First try to get the docker-gen container ID from the container label.
-    local docker_gen_cid; docker_gen_cid="$(labeled_cid com.github.jrcs.letsencrypt_nginx_proxy_companion.docker_gen)"
+    local legacy_docker_gen_cid; legacy_docker_gen_cid="$(labeled_cid com.github.jrcs.letsencrypt_nginx_proxy_companion.docker_gen)"
+    local new_docker_gen_cid; new_docker_gen_cid="$(labeled_cid com.github.nginx-proxy.docker-gen)"
+    local docker_gen_cid; docker_gen_cid="${new_docker_gen_cid:-$legacy_docker_gen_cid}"
 
     # If the labeled_cid function dit not return anything and the env var is set, use it.
     if [[ -z "$docker_gen_cid" ]] && [[ -n "${NGINX_DOCKER_GEN_CONTAINER:-}" ]]; then
@@ -283,7 +295,9 @@ function get_docker_gen_container {
 function get_nginx_proxy_container {
     local volumes_from
     # First try to get the nginx container ID from the container label.
-    local nginx_cid; nginx_cid="$(labeled_cid com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy)"
+    local legacy_nginx_cid; legacy_nginx_cid="$(labeled_cid com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy)"
+    local new_nginx_cid; new_nginx_cid="$(labeled_cid com.github.nginx-proxy.nginx)"
+    local nginx_cid; nginx_cid="${new_nginx_cid:-$legacy_nginx_cid}"
 
     # If the labeled_cid function dit not return anything ...
     if [[ -z "${nginx_cid}" ]]; then
@@ -335,10 +349,10 @@ function reload_nginx {
 
 function set_ownership_and_permissions {
   local path="${1:?}"
-  # The default ownership is root:root, with 755 permissions for folders and 644 for files.
+  # The default ownership is root:root, with 755 permissions for folders and 600 for private files.
   local user="${FILES_UID:-root}"
   local group="${FILES_GID:-$user}"
-  local f_perms="${FILES_PERMS:-644}"
+  local f_perms="${FILES_PERMS:-600}"
   local d_perms="${FOLDERS_PERMS:-755}"
 
   if [[ ! "$f_perms" =~ ^[0-7]{3,4}$ ]]; then
@@ -397,7 +411,7 @@ function set_ownership_and_permissions {
     # If the path is a file, check and modify permissions if required.
     elif [[ -f "$path" ]]; then
       # Use different permissions for private files (private keys and ACME account files) ...
-      if [[ "$path" =~ ^.*(default\.key|key\.pem|\.json)$ ]]; then
+      if [[ "$path" =~ ^.*(key\.pem|\.key)$ ]]; then
         if [[ "$(stat -c %a "$path")" != "$f_perms" ]]; then
           [[ "$DEBUG" == 1 ]] && echo "Debug: setting $path permissions to $f_perms."
           chmod "$f_perms" "$path"
